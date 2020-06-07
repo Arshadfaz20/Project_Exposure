@@ -1,0 +1,59 @@
+// This #include statement was automatically added by the Particle IDE.
+#include <Adafruit_DHT.h>
+#define DHTPIN 2 
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+// This #include statement was automatically added by the Particle IDE.
+#include <HC_SR04.h>
+
+// This #include statement was automatically added by the Particle IDE.
+#include <MQTT.h>
+
+MQTT client("test.mosquitto.org", 1883, callback);
+
+
+// This is called when a message is received. However, we do not use this feature in
+// this project so it will be left empty
+void callback(char* topic, byte* payload, unsigned int length) 
+{
+}
+int distance = 0;
+int trigPin = D5;
+int echoPin = D4;
+HC_SR04 rangeFinder = HC_SR04(trigPin, echoPin,0,300);
+int led = D7;  // The on-board LED
+
+void setup() {
+    dht.begin();
+    pinMode(led, OUTPUT);
+    client.connect("ArgonProject513");
+}
+
+void loop() {
+    distance = rangeFinder.getDistanceCM();
+    Particle.publish("Distance", String(distance));
+    // Only try to send messages if we are connected
+    if (client.isConnected()) {
+        if (distance < 15)
+        {
+            client.publish("ProjectExposure", "hand");
+            delay(4000);
+            float t = dht.getTempCelcius();
+            Particle.publish("Temperature", String(t));
+            if (t<37.5)
+            {
+                client.publish("ProjectExposure", "Open");
+            }
+            else
+            {
+                Particle.publish("Notify", "High temperature customer detected");
+                client.publish("ProjectExposure", "Close");
+            }
+        }
+        
+        delay(3000);
+        
+        // CALL THIS at the end of your loop
+        client.loop();
+    } 
+}
