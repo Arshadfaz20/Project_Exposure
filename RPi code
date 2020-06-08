@@ -1,0 +1,78 @@
+import paho.mqtt.client as mqtt         # Import the MQTT library
+import time                 # The time library is useful for delays
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+servoPIN = 17
+LED = 4
+LEDSAN = 21
+LEDWARN = 20
+LEDOK = 16
+
+GPIO.setup(LED,GPIO.OUT)
+GPIO.setup(LEDSAN,GPIO.OUT)
+GPIO.setup(LEDWARN,GPIO.OUT)
+GPIO.setup(LEDOK,GPIO.OUT)
+GPIO.setup(servoPIN, GPIO.OUT)
+pwm = GPIO.PWM(servoPIN, 50) # GPIO 17 for PWM with 50Hz
+pwm.start(2.5) # Initialization
+
+def warn():
+    i=0
+    while i<10:
+        GPIO.output(LEDWARN,GPIO.HIGH)
+        time.sleep(0.1)
+        GPIO.output(LEDWARN,GPIO.LOW)
+        time.sleep(0.1)
+        i+= 1
+
+def sanitize():
+    GPIO.output(LEDSAN,GPIO.HIGH)
+    time.sleep(2)
+    GPIO.output(LEDSAN,GPIO.LOW)
+
+def openServo():
+    i=0
+    while i<10:
+        GPIO.output(LEDOK,GPIO.HIGH)
+        time.sleep(0.1)
+        GPIO.output(LEDOK,GPIO.LOW)
+        time.sleep(0.1)
+        i+= 1
+
+    GPIO.output(LED,GPIO.HIGH)
+    pwm.ChangeDutyCycle(4)
+    time.sleep(4)
+    pwm.ChangeDutyCycle(7.5)
+    GPIO.output(LED,GPIO.LOW)
+    time.sleep(0.5)
+    pwm.ChangeDutyCycle(0)
+# Our "on message" event
+def messageFunction (client, userdata, message):
+    topic = str(message.topic)
+    message = str(message.payload.decode("utf-8"))
+    print(topic + message)
+    if (message == "hand"):
+        sanitize()
+        print('SANITIZING')
+    if (message == "Open"):
+        openServo()
+    if (message == "Close"):
+        warn()
+
+
+ourClient = mqtt.Client("arshadraspi234")     # Create a MQTT client object
+ourClient.connect("test.mosquitto.org", 1883)   # Connect to the test
+MQTT broker
+ourClient.subscribe("ProjectExposure")            # Subscribe to the
+topic AC_unit
+ourClient.on_message = messageFunction      # Attach the
+messageFunction to subscription
+ourClient.loop_start()              # Start the MQTT client
+
+
+# Main program loop
+while(1):
+    time.sleep(1)               # Sleep for a second
